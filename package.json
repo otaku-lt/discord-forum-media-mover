@@ -1,5 +1,5 @@
 {
-  "name": "photo_mover",
+  "name": "discord-forum-media-mover",
   "version": "1.0.0",
   "description": "Discord bot that moves photos from forum threads to a destination channel",
   "license": "ISC",

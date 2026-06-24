@@ -28,12 +28,35 @@ describe('isMediaAttachment', () => {
 });
 
 describe('isSinglePostThread', () => {
-    it('returns true for a thread with one message', () => {
-        assert.strictEqual(isSinglePostThread({ messageCount: 1 }), true);
+    it('returns true for a thread with one message', async () => {
+        const thread = {
+            messages: {
+                fetch: async () => new Map([['msg-1', {}]]),
+            },
+        };
+        assert.strictEqual(await isSinglePostThread(thread), true);
     });
 
-    it('returns false for a thread with more than one message', () => {
-        assert.strictEqual(isSinglePostThread({ messageCount: 5 }), false);
+    it('returns false for a thread with more than one message', async () => {
+        const thread = {
+            messages: {
+                fetch: async () => new Map([
+                    ['msg-1', {}],
+                    ['msg-2', {}],
+                ]),
+            },
+        };
+        assert.strictEqual(await isSinglePostThread(thread), false);
+    });
+
+    it('returns true even when the starter message contains media', async () => {
+        const thread = {
+            name: 'Media-only starter thread',
+            messages: {
+                fetch: async () => new Map([['msg-1', { attachments: [{ contentType: 'image/png' }] }]]),
+            },
+        };
+        assert.strictEqual(await isSinglePostThread(thread), true);
     });
 });
 
@@ -71,32 +94,30 @@ describe('isFutureEvent', () => {
 });
 
 describe('ThreadFilter', () => {
-    it('skips excluded threads', () => {
+    it('skips excluded threads', async () => {
         const filter = new ThreadFilter({ excludedThreadIds: new Set(['123']) });
-        const state = { has: () => false };
-        const thread = { id: '123', name: 'Event', messageCount: 5 };
-        assert.strictEqual(filter.shouldSkip(thread, state), 'excluded');
+        const thread = { id: '123', name: 'Event' };
+        assert.strictEqual(await filter.shouldSkip(thread), 'excluded');
     });
 
-    it('skips already processed threads', () => {
+    it('skips single-post threads', async () => {
         const filter = new ThreadFilter({ excludedThreadIds: new Set() });
-        const state = { has: id => id === '456' };
-        const thread = { id: '456', name: 'Event', messageCount: 5 };
-        assert.strictEqual(filter.shouldSkip(thread, state), 'already processed');
+        const thread = {
+            id: '789',
+            name: 'Event',
+            messages: { fetch: async () => new Map([['msg-1', {}]]) },
+        };
+        assert.strictEqual(await filter.shouldSkip(thread), 'single post');
     });
 
-    it('skips single-post threads', () => {
+    it('returns null for threads that should be processed', async () => {
         const filter = new ThreadFilter({ excludedThreadIds: new Set() });
-        const state = { has: () => false };
-        const thread = { id: '789', name: 'Event', messageCount: 1 };
-        assert.strictEqual(filter.shouldSkip(thread, state), 'single post');
-    });
-
-    it('returns null for threads that should be processed', () => {
-        const filter = new ThreadFilter({ excludedThreadIds: new Set() });
-        const state = { has: () => false };
-        const thread = { id: '000', name: '2000-01-01 Event', messageCount: 5 };
-        assert.strictEqual(filter.shouldSkip(thread, state), null);
+        const thread = {
+            id: '000',
+            name: '2000-01-01 Event',
+            messages: { fetch: async () => new Map([['msg-1', {}], ['msg-2', {}]]) },
+        };
+        assert.strictEqual(await filter.shouldSkip(thread), null);
     });
 });
 

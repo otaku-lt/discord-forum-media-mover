@@ -1,10 +1,7 @@
-name: Photo Mover
+name: Discord Forum Media Mover
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   run:

@@ -25,30 +25,73 @@ async function fetchAllThreads(forum) {
     return threads;
 }
 
-async function createDestinationThread(destination, sourceThread) {
+async function findDestinationThreadByName(destination, sourceThread) {
+    const active = await destination.threads.fetchActive();
+    let match = [...active.threads.values()].find(t => t.name === sourceThread.name);
+    if (match) return match;
+
+    const archived = await destination.threads.fetchArchived();
+    match = [...archived.threads.values()].find(t => t.name === sourceThread.name);
+    if (match) return match;
+
+    return null;
+}
+
+async function getOrCreateDestinationThread(destination, sourceThread, state) {
+    const threadState = state.getThreadState(sourceThread.id);
+    if (threadState.destinationThreadId) {
+        try {
+            const existing = await destination.client.channels.fetch(threadState.destinationThreadId);
+            return { thread: existing, created: false };
+        } catch (error) {
+            console.warn(
+                `Destination thread ${threadState.destinationThreadId} not found, resetting state and creating a new one`
+            );
+            state.resetThread(sourceThread.id);
+        }
+    }
+
+    if (state.isProcessed(sourceThread.id)) {
+        const existingByName = await findDestinationThreadByName(destination, sourceThread);
+        if (existingByName) return { thread: existingByName, created: false };
+    }
+
     const starter = await destination.send({ content: sourceThread.name });
-    return starter.startThread({ name: sourceThread.name });
+    const destinationThread = await starter.startThread({ name: sourceThread.name });
+    return { thread: destinationThread, created: true };
 }
 
 async function processThread(sourceThread, destination, filter, state) {
-    const skipReason = filter.shouldSkip(sourceThread, state);
+    const skipReason = await filter.shouldSkip(sourceThread);
+
     if (skipReason) {
         console.log(`Skipping "${sourceThread.name}": ${skipReason}`);
         return false;
     }
 
     const mediaByMessage = await collectThreadMedia(sourceThread);
-    if (mediaByMessage.length === 0) {
-        console.log(`No media in "${sourceThread.name}", marking as processed`);
-        state.mark(sourceThread.id);
+    const newMedia = mediaByMessage.filter(
+        ({ sourceMessageId }) => !state.hasPostedMessage(sourceThread.id, sourceMessageId)
+    );
+
+    if (newMedia.length === 0) {
+        console.log(`No new media in "${sourceThread.name}"`);
         return false;
     }
 
-    const destinationThread = await createDestinationThread(destination, sourceThread);
-    console.log(`Created thread: ${destinationThread.name}`);
+    const { thread: destinationThread, created } = await getOrCreateDestinationThread(
+        destination,
+        sourceThread,
+        state
+    );
+    if (created) {
+        console.log(`Created thread: ${destinationThread.name}`);
+    }
 
-    await postMediaToThread(destinationThread, mediaByMessage);
-    state.mark(sourceThread.id);
+    await postMediaToThread(destinationThread, newMedia);
+    for (const { sourceMessageId } of newMedia) {
+        state.markPostedMessage(sourceThread.id, sourceMessageId, destinationThread.id);
+    }
     return true;
 }
 
@@ -72,14 +115,14 @@ async function main() {
 
         console.log(`Found ${allThreads.length} total threads`);
 
-        let processed = 0;
+        let updated = 0;
         let skipped = 0;
         let failed = 0;
 
         for (const thread of allThreads) {
             try {
-                const created = await processThread(thread, destination, filter, state);
-                if (created) processed++;
+                const changed = await processThread(thread, destination, filter, state);
+                if (changed) updated++;
                 else skipped++;
             } catch (error) {
                 console.error(`Failed to process "${thread.name}":`, error);
@@ -87,7 +130,7 @@ async function main() {
             }
         }
 
-        console.log(`Finished: ${processed} processed, ${skipped} skipped, ${failed} failed`);
+        console.log(`Finished: ${updated} updated, ${skipped} skipped, ${failed} failed`);
     } catch (error) {
         console.error('Fatal error:', error);
         process.exitCode = 1;

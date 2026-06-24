@@ -14,12 +14,18 @@ async function collectThreadMedia(thread) {
         if (messages.size === 0) break;
 
         for (const message of [...messages.values()].reverse()) {
+            if (message.id === thread.id) continue; // skip the starter post
+
             const mediaUrls = message.attachments
                 .filter(isMediaAttachment)
                 .map(attachment => attachment.url);
 
             if (mediaUrls.length > 0) {
-                mediaByMessage.push({ messageUrl: message.url, mediaUrls });
+                mediaByMessage.push({
+                    sourceMessageId: message.id,
+                    messageUrl: message.url,
+                    mediaUrls,
+                });
             }
         }
 
