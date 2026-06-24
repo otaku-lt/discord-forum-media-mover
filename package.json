@@ -1,0 +1,20 @@
+{
+  "name": "photo_mover",
+  "version": "1.0.0",
+  "description": "Discord bot that moves photos from forum threads to a destination channel",
+  "license": "ISC",
+  "author": "KseRe",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --test",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.26.4",
+    "js-yaml": "^4.2.0"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  }
+}

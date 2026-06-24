@@ -1,0 +1,38 @@
+name: Photo Mover
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  run:
+    name: Run photo mover
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run photo mover
+        run: node index.js
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          SOURCE_FORUM_ID: ${{ secrets.SOURCE_FORUM_ID }}
+          DESTINATION_CHANNEL_ID: ${{ secrets.DESTINATION_CHANNEL_ID }}
+          EXCLUDED_THREAD_IDS: ${{ secrets.EXCLUDED_THREAD_IDS }}
+          PROCESSED_THREADS_FILE: ./processed-threads.yml

@@ -1,0 +1,9 @@
+const DISCORD_MESSAGE_LIMIT = 2000;
+const DISCORD_FETCH_MESSAGES_LIMIT = 100;
+const SUPPORTED_MEDIA_TYPES = Object.freeze(['image/', 'video/']);
+
+module.exports = {
+    DISCORD_MESSAGE_LIMIT,
+    DISCORD_FETCH_MESSAGES_LIMIT,
+    SUPPORTED_MEDIA_TYPES,
+};
