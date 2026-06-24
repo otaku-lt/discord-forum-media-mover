@@ -102,7 +102,7 @@ The repository includes `.github/workflows/discord-forum-media-mover.yml`. Confi
 - `DESTINATION_CHANNEL_ID`
 - `EXCLUDED_THREAD_IDS` (optional)
 
-The workflow only runs on `workflow_dispatch` (manual trigger).
+The workflow only runs on `workflow_dispatch` (manual trigger). After a successful run, it commits any changes to `processed-threads.yml` back to the repository so the next run is incremental.
 
 ## Testing
 

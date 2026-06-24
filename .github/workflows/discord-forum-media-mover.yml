@@ -3,14 +3,17 @@ name: Discord Forum Media Mover
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   run:
-    name: Run photo mover
+    name: Run Discord Forum Media Mover
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -25,7 +28,7 @@ jobs:
       - name: Run tests
         run: npm test
 
-      - name: Run photo mover
+      - name: Run Discord Forum Media Mover
         run: node index.js
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
@@ -33,3 +36,15 @@ jobs:
           DESTINATION_CHANNEL_ID: ${{ secrets.DESTINATION_CHANNEL_ID }}
           EXCLUDED_THREAD_IDS: ${{ secrets.EXCLUDED_THREAD_IDS }}
           PROCESSED_THREADS_FILE: ./processed-threads.yml
+
+      - name: Commit and push state file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add processed-threads.yml
+          if git diff --cached --quiet; then
+            echo "No state changes to commit"
+          else
+            git commit -m "Update processed threads state"
+            git push
+          fi
